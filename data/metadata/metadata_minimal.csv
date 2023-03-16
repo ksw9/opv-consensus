@@ -1,0 +1,9 @@
+﻿variable,definition
+Folio,participant ID
+FolioFamilia,household ID
+vaccinated,individual vaccination status
+VacFam,vaccination in household
+VacStatus,overall vaccination status
+ADate-Jdate,date of sampling 
+A-J,days following National Immunization Week for sample collection
+NIWOPVFM,date of National Immunization Week

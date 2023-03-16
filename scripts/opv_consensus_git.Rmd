@@ -118,7 +118,7 @@ opv2_att1 = 2909 # C2909U is the attenuating mutation (i.e. loss of T makes it v
 opv3_att1 = 2493 # U2493C
 
 # Read in metadata
-meta <- read_csv(meta_df, paste0(data_dir,'metadata/metadata_opv.csv'))
+meta <- read_csv(meta_df, paste0(data_dir,'metadata/metadata_minimal.csv'))
 ```
 
 ```{r pairwise distances between sequences }
