@@ -6,7 +6,7 @@ date: "2023-03-16"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-
+knitr::opts_knit$set(root.dir = '~/Desktop/For Utah Box/Polio/opv-consensus/')
 library(tidyverse)
 library(ggsci)
 library(ggthemes)
@@ -24,11 +24,13 @@ library(lubridate)
 library(scales)
 
 # Define paths
+plot_dir = 'plots/'
 data_dir = "data/"
 msa_dir = "processed/msa/"
 aln_dir = "processed/aln/"
 tree_dir = "processed/trees/"
-
+meta_dir = "data/metadata/"
+project_dir = '~/Desktop/For Utah Box/Polio/opv-consensus/'
 ```
 ```{r fig1}
 cnty_dat <- read_csv('data/who/country_summary_2020-2022.csv')
@@ -101,6 +103,12 @@ vp1_1 <- aln1[,2480:3385]
 vp1_2 <- aln2[,2482:3384]
 vp1_3 <- aln3[,2477:3376]
 
+#### Try this: read in genbank alignments
+# Read alignments to full reference sequence. (Needs to be DNAbin, matrix which signifies aligned sequences)
+vp1_1 <- read.dna(file = paste0(project_dir,'processed/aln/opv1_vp1_ref.fasta'),format = 'fasta')
+vp1_2 <- read.dna(file = paste0(project_dir,'processed/aln/opv2_vp1_ref.fasta'), format = 'fasta')
+vp1_3 <- read.dna(file =  paste0(project_dir,'processed/aln/opv3_vp1_ref.fasta'), format = 'fasta')
+
 # Reversion sites in VP1 from literature and location of VP1 along the genome
 # VP1 gene start and end nucleotides
 opv1_start = 2480
@@ -118,7 +126,7 @@ opv2_att1 = 2909 # C2909U is the attenuating mutation (i.e. loss of T makes it v
 opv3_att1 = 2493 # U2493C
 
 # Read in metadata
-meta <- read_csv(meta_df, paste0(data_dir,'metadata/metadata_minimal.csv'))
+meta <- read_csv(paste0(meta_dir,'metadata_opv.csv'))
 ```
 
 ```{r pairwise distances between sequences }
@@ -187,7 +195,7 @@ d_pairs <- d_long %>% bind_rows(d_neutral_long) %>%
          ind.y = str_sub(p.y, start = 1, end = 8), 
          house.y = str_sub(p.y, start = 1, end = 7), 
          date.y = str_sub(p.y, start = 9, end = 9), 
-         pair_type = case_when(p.x == 'AY184220.1' | p.y == 'AY184220.1' ~ 'ref',
+         pair_type = case_when(str_starts(p.x, 'AY1') | str_starts(p.y, 'AY1')  ~ 'ref',
                                ind.x == ind.y ~ 'host',
                                house.x == house.y ~ 'house',
                                loc.x == loc.y ~ 'location',
@@ -230,7 +238,7 @@ d_pairs %>% ungroup() %>%
   filter(str_starts(p.x,'AY1') & aln_type == 'all') %>%   
   group_by(ind.y, serotype) %>%
   summarize(n = n())
-group_by(VacStatus.y,serotype) %>% summarize(n = n())
+#group_by(VacStatus.y,serotype) %>% summarize(n = n())
 # longitudinal samples
 d_pairs %>% ungroup() %>% 
   filter(str_starts(p.x,'AY1') & aln_type == 'all') %>%
@@ -328,7 +336,7 @@ plot_grid(leg)
 # Plot together
 p_all <- ggarrange(p1C,p1H,p1T,p2C,p2H,p2T,p3C,p3H,p3T, labels = c('OPV-1:C','OPV-1:H','OPV-1:T', 'OPV-2:C','OPV-2:H','OPV-2:T','OPV-3:C','OPV-3:H','OPV-3:T')) +
   theme(plot.margin = unit(c(0,0,0,0), "points"))
-
+ggsave(p_all, filename = paste0(plot_dir,'haplotypes.pdf'))
 ```
 
 ```{r plot genetic distance to vaccine x time from NIW}
@@ -420,6 +428,8 @@ d_pairs %>% ungroup() %>% filter(str_starts(p.x,'AY1') & aln_type == 'all') %>%
   ylab('Distance to Sabin vaccine strain') +
   facet_grid(rows = vars(serotype)) 
 
+# Translate OPV-1 slope to substitution rate
+0.11* 1/906
 # Number of samples identical to vaccine strain. 
 d_pairs %>% ungroup() %>% filter(str_starts(p.x,'AY1') & aln_type == 'all') %>%
   group_by(serotype) %>%
@@ -473,38 +483,37 @@ d_pairs %>% ungroup() %>%
 ```{r frequency of reversion mutations}
 
 # Look at OPV1 opv1_att1 in full length alignment
-table(as.character(aln1[,opv1_att1])) 
-rev1a <- labels(aln1[which(as.character(aln1[,opv1_att1]) != 'a'),])
+table(as.character(vp1_1[,opv1_att1-opv1_start + 1])) 
+rev1a <- labels(vp1_1[which(as.character(vp1_1[,opv1_att1-opv1_start + 1]) != 'a'),])
 length(rev1a)/49
 d_pairs %>% ungroup() %>% 
   filter(str_starts(p.x,'AY1') & aln_type == 'all') %>% 
   filter(p.y %in% rev1a) %>% relocate(VacStatus.y, daysPost.y)
 
 # Look at OPV1 opv1_att2 in full length alignment
-table(as.character(aln1[,opv1_att2])) 
-rev1b <- labels(aln1[which(as.character(aln1[,opv1_att2]) != 'a'),])
+table(as.character(aln1[,opv1_att2-opv1_start + 1])) 
+rev1b <- labels(vp1_1[which(as.character(vp1_1[,opv1_att2-opv1_start + 1]) != 'a'),])
 length(rev1b)/49
 d_pairs %>% ungroup() %>% 
   filter(str_starts(p.x,'AY1') & aln_type == 'all' & serotype == 1) %>% 
   filter(p.y %in% rev1b) %>% relocate(VacStatus.y, daysPost.y)
-table(as.character(aln1[,opv1_att2]))
-table(as.character(aln1[,opv1_att3])) # no mutations
+table(as.character(vp1_1[,opv1_att3-opv1_start + 1])) # no mutations
 
 # OPV2
-table(as.character(aln2[,opv2_att1]))
-rev2 <- labels(aln2[which(as.character(aln2[,opv2_att1]) != 't'),])
+table(as.character(vp1_2[,opv2_att1-opv2_start + 1]))
+rev2 <- labels(vp1_2[which(as.character(vp1_2[,opv2_att1-opv2_start + 1]) != 't'),])
 length(rev2)/136
 d_pairs %>% ungroup() %>% 
   filter(str_starts(p.x,'AY1') & aln_type == 'all' & serotype == 2) %>% 
   filter(p.y %in% rev2) %>% relocate(VacStatus.y, daysPost.y,ind.y) %>% arrange(ind.y)
 
-table(as.character(aln2[,2908])) # no evidence of mutation at the adjacent site. 
+table(as.character(vp1_2[,opv2_att1-opv2_start])) # no evidence of mutation at the adjacent site. 
 
 # OPV3 in full length alignment
-table(as.character(aln3[,opv3_att1]))
-mixed <- labels(aln3[which(as.character(aln3[,opv3_att1]) %in% c('n','-')),])
-as.character(aln3[mixed,2493])
-rev3 <- labels(aln3[which(!as.character(aln3[,opv3_att1]) %in% c('c','n','-')),])
+table(as.character(vp1_3[,opv3_att1-opv3_start + 1]))
+mixed <- labels(vp1_3[which(as.character(vp1_3[,opv3_att1-opv3_start + 1]) %in% c('n','-')),])
+as.character(vp1_3[mixed,opv3_att1-opv3_start + 1])
+rev3 <- labels(vp1_3[which(!as.character(vp1_3[,opv3_att1-opv3_start + 1]) %in% c('c','n','-')),])
 length(rev3)/173
 d_pairs %>% ungroup() %>% 
   filter(str_starts(p.x,'AY1') & aln_type == 'all' & serotype == 3) %>% 
@@ -536,7 +545,7 @@ d_pairs %>% ungroup() %>%
 ```{r plot revertant proportion }
 #### Plot proportion reversion mutations over time. ####
 # OPV1
-opv1_summary <- as.data.frame(as.character(aln1[,c(opv1_att1,opv1_att2,opv1_att3)])) %>% 
+opv1_summary <- as.data.frame(as.character(vp1_1[,c(opv1_att1-opv1_start + 1,opv1_att2-opv1_start + 1,opv1_att3-opv1_start + 1)])) %>% 
   rownames_to_column(var = 'Sample') %>% as_tibble() %>% 
   dplyr::rename(opv1_2749=V1,opv1_2795=V2,opv1_2879=V3) %>% 
   left_join(daysPost) %>% 
@@ -555,7 +564,7 @@ opv1_summary <- as.data.frame(as.character(aln1[,c(opv1_att1,opv1_att2,opv1_att3
   pivot_longer(cols = c(`2749`,`2795`,`2879`), values_to = 'Revertant proportion', names_to = 'Site') %>% filter(!is.na(time))
 
 # OPV2
-opv2_summary <- as.data.frame(as.character(aln2[,c(opv2_att1)])) %>% 
+opv2_summary <- as.data.frame(as.character(aln2[,c(opv2_att1-opv2_start + 1)])) %>% 
   rownames_to_column(var = 'Sample') %>% as_tibble() %>% 
   dplyr::rename(opv2_2909=V1) %>% 
   left_join(daysPost) %>% 
@@ -568,7 +577,7 @@ opv2_summary <- as.data.frame(as.character(aln2[,c(opv2_att1)])) %>%
   pivot_longer(cols = c(`2909`), values_to = 'Revertant proportion', names_to = 'Site') %>% filter(!is.na(time))
 
 #OPV3
-opv3_summary <- as.data.frame(as.character(aln3[,c(opv3_att1)])) %>% 
+opv3_summary <- as.data.frame(as.character(aln3[,c(opv3_att1-opv3_start + 1)])) %>% 
   rownames_to_column(var = 'Sample') %>% as_tibble() %>% 
   dplyr::rename(opv3_2493=V1) %>% 
   left_join(daysPost) %>% 
@@ -599,6 +608,6 @@ r1 <- bind_rows(opv1_summary, opv2_summary,opv3_summary) %>%
   )
 
 r1
-#ggsave(r1, filename = paste(plot_dir,'revertent_proportion.pdf',sep = ''),height = 4,width=8)
+ggsave(r1, filename = paste(plot_dir,'revertent_proportion.pdf',sep = ''),height = 4,width=8)
 
 ```
