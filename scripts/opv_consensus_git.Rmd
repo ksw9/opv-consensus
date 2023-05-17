@@ -22,14 +22,17 @@ library("ggplotify")
 library(ggpubr)
 library(lubridate)
 library(scales)
+library(readxl)
 
 # Define paths
+project_dir = '/Users/u6045141/Library/CloudStorage/Box-Box/Polio/opv-consensus/'
 data_dir = "data/"
+plot_dir = paste0(project_dir, 'plots/')
 msa_dir = "processed/msa/"
 aln_dir = "processed/aln/"
 tree_dir = "processed/trees/"
-
 ```
+
 ```{r fig1}
 cnty_dat <- read_csv('data/who/country_summary_2020-2022.csv')
 world_dat <- read_csv('data/who/global_polio_2000-2022.csv')
@@ -83,6 +86,7 @@ p3 <- ggarrange(p1,p2, labels = c("a","b"), nrow = 2)
 ggsave(p3, filename = paste(plot_dir,'fig1.pdf',sep = ''))
 
 ```
+
 ```{r, read in aln}
 # Start here with Github--need to read in full length alignments.
 # Aligned with MAFFT - start w/ OPV, align to the reference, keep length of reference genome
@@ -118,7 +122,14 @@ opv2_att1 = 2909 # C2909U is the attenuating mutation (i.e. loss of T makes it v
 opv3_att1 = 2493 # U2493C
 
 # Read in metadata
-meta <- read_csv(meta_df, paste0(data_dir,'metadata/metadata_minimal.csv'))
+meta <- read_csv(paste0(project_dir,'data/metadata/metadata_opv.csv'))
+
+# Write list of sample names.
+samps = tibble(sample = labels(aln1), serotype = 'opv1') %>%
+  bind_rows(tibble(sample = labels(aln2), serotype = 'opv2')) %>%
+  bind_rows(tibble(sample = labels(aln3), serotype = 'opv3'))
+# write_tsv(samps, file = paste0(project_dir, 'data/metadata/sample_list.tsv'))
+
 ```
 
 ```{r pairwise distances between sequences }
@@ -230,7 +241,7 @@ d_pairs %>% ungroup() %>%
   filter(str_starts(p.x,'AY1') & aln_type == 'all') %>%   
   group_by(ind.y, serotype) %>%
   summarize(n = n())
-group_by(VacStatus.y,serotype) %>% summarize(n = n())
+#group_by(VacStatus.y,serotype) %>% summarize(n = n())
 # longitudinal samples
 d_pairs %>% ungroup() %>% 
   filter(str_starts(p.x,'AY1') & aln_type == 'all') %>%
@@ -243,6 +254,7 @@ d_pairs %>% ungroup() %>%
 # Colors
 col_pal <- pal_jco()(4)
 names(col_pal) <- unique(meta$VacStatus)
+names(col_pal)[2] <- 'NHW vaccinee'
 
 # Set x and y limits to standardize node size across plots
 xl <- c(-8, 8)
@@ -324,11 +336,12 @@ leg <- as.data.frame(col_pal) %>%
         legend.text = element_text(size=14)) + guides(colour = guide_legend(override.aes = list(size=10)))
 leg <- get_legend(leg)
 plot_grid(leg)
+# ggsave(leg, filename = paste(plot_dir,'haplotype_network_leg.pdf',sep = ''),height = 4,width=4)
 
 # Plot together
 p_all <- ggarrange(p1C,p1H,p1T,p2C,p2H,p2T,p3C,p3H,p3T, labels = c('OPV-1:C','OPV-1:H','OPV-1:T', 'OPV-2:C','OPV-2:H','OPV-2:T','OPV-3:C','OPV-3:H','OPV-3:T')) +
   theme(plot.margin = unit(c(0,0,0,0), "points"))
-
+p_all
 ```
 
 ```{r plot genetic distance to vaccine x time from NIW}
@@ -338,9 +351,9 @@ p4 <- d_pairs %>% ungroup() %>%
   filter(str_starts(p.x,'AY1') & aln_type == 'all') %>%
   filter(daysPost.y > 0) %>% 
   mutate(cVDPV_threshold = case_when(serotype %in% c(1,3) ~ 10, serotype == 2 ~ 6), 
-         VacStatus_summary = case_when(VacStatus.y == 'Vaccinated child' ~ VacStatus.y, 
-                                       TRUE ~ 'Not vaccinated'), 
-         VacStatus_summary = factor(VacStatus_summary, levels = c('Vaccinated child', 'Not vaccinated')), 
+         VacStatus_summary = case_when(VacStatus.y == 'Vaccinated child' ~ 'NHW vaccinee', 
+                                       TRUE ~ 'Community member'), 
+         VacStatus_summary = factor(VacStatus_summary, levels = c('NHW vaccinee', 'Community member')), 
          serotype = paste0('OPV-',serotype)) %>% 
   ggplot(aes(x = daysPost.y, y = N, color = VacStatus_summary)) + 
   geom_jitter() +
@@ -355,15 +368,15 @@ p4 <- d_pairs %>% ungroup() %>%
   scale_x_continuous(limits=c(0,75), expand = c(0,0)) + scale_y_continuous(limits=c(0,14),expand = c(0,0)) + 
   theme_bw() + theme(axis.line.y = element_line())
 p4
-#ggsave(p4, filename = paste(plot_dir,'opv_mutation_rate.pdf',sep = ''),height = 8,width=8)
+# ggsave(p4, filename = paste(plot_dir,'opv_mutation_rate.pdf',sep = ''),height = 8,width=8)
 
 # Plot genetic distance x time from NIWs for dataset including only 'neutral' sites (excluding known attenuating sites)
 p5 <- d_pairs %>% ungroup() %>% 
   filter(str_starts(p.x,'AY1') & aln_type == 'neutral') %>%
   filter(daysPost.y > 0) %>% mutate(cVDPV_threshold = case_when(serotype %in% c(1,3) ~ 10, serotype == 2 ~ 6), 
-                                    VacStatus_summary = case_when(VacStatus.y == 'Vaccinated child' ~ VacStatus.y, 
-                                                                  TRUE ~ 'Not vaccinated'), 
-                                    VacStatus_summary = factor(VacStatus_summary, levels = c('Vaccinated child', 'Not vaccinated')), 
+                                    VacStatus_summary = case_when(VacStatus.y == 'Vaccinated child' ~ 'NHW vaccinee', 
+                                                                  TRUE ~ 'Community member'), 
+                                    VacStatus_summary = factor(VacStatus_summary, levels = c('NHW vaccinee', 'Community member')), 
                                     serotype = paste0('OPV-',serotype)) %>%
   ggplot(aes(x = daysPost.y, y = N, color = VacStatus_summary)) + 
   geom_jitter() +
@@ -478,7 +491,9 @@ rev1a <- labels(aln1[which(as.character(aln1[,opv1_att1]) != 'a'),])
 length(rev1a)/49
 d_pairs %>% ungroup() %>% 
   filter(str_starts(p.x,'AY1') & aln_type == 'all') %>% 
-  filter(p.y %in% rev1a) %>% relocate(VacStatus.y, daysPost.y)
+  filter(p.y %in% rev1a) %>% 
+  left_join(rp, by = c('p.y' = 'SampleFolio')) %>%
+  relocate(VacStatus.y, daysPost.y, rp)
 
 # Look at OPV1 opv1_att2 in full length alignment
 table(as.character(aln1[,opv1_att2])) 
@@ -496,7 +511,9 @@ rev2 <- labels(aln2[which(as.character(aln2[,opv2_att1]) != 't'),])
 length(rev2)/136
 d_pairs %>% ungroup() %>% 
   filter(str_starts(p.x,'AY1') & aln_type == 'all' & serotype == 2) %>% 
-  filter(p.y %in% rev2) %>% relocate(VacStatus.y, daysPost.y,ind.y) %>% arrange(ind.y)
+  filter(p.y %in% rev2) %>% relocate(VacStatus.y, daysPost.y,ind.y) %>% arrange(ind.y) %>% 
+  left_join(rp, by = c('p.y' = 'SampleFolio')) %>%
+  relocate(VacStatus.y, daysPost.y, rp)
 
 table(as.character(aln2[,2908])) # no evidence of mutation at the adjacent site. 
 
@@ -509,12 +526,15 @@ length(rev3)/173
 d_pairs %>% ungroup() %>% 
   filter(str_starts(p.x,'AY1') & aln_type == 'all' & serotype == 3) %>% 
   filter(p.y %in% rev3) %>% relocate(VacStatus.y, daysPost.y,ind.y) %>% arrange(ind.y) %>%
-  group_by(ind.y,VacStatus.y) %>% summarize(n = n()) %>% pull(VacStatus.y) %>% table()
+  group_by(ind.y,VacStatus.y) %>% summarize(n = n()) %>% pull(VacStatus.y) %>% table() 
 
 # Days
 d_pairs %>% ungroup() %>% 
   filter(str_starts(p.x,'AY1') & aln_type == 'all' & serotype == 3) %>% 
-  filter(p.y %in% tmp) %>% relocate(VacStatus.y, daysPost.y,ind.y) %>% arrange(-daysPost.y)
+  filter(p.y %in% rev3) %>% relocate(VacStatus.y, daysPost.y,ind.y) %>% arrange(-daysPost.y) %>% 
+  left_join(rp, by = c('p.y' = 'SampleFolio')) %>%
+  select(VacStatus.y, daysPost.y, rp, p.y) %>% unique() %>%
+  filter(rp > 0)
 
 # Look at percentage of Sabin-like viruses with at least one revertant mutation
 d_pairs %>% ungroup() %>% 
@@ -600,5 +620,72 @@ r1 <- bind_rows(opv1_summary, opv2_summary,opv3_summary) %>%
 
 r1
 #ggsave(r1, filename = paste(plot_dir,'revertent_proportion.pdf',sep = ''),height = 4,width=8)
+
+```
+
+```{r 5' UTR revertant proportion}
+# read in 5' UTR revertant proportion data
+rp_filename = paste0(project_dir,'data/metadata/mexico_rp.xlsx')
+rp = read_xlsx(rp_filename)
+rp
+
+# Organize data into serotype and RP
+rp <- rp %>%
+  mutate(rp = case_when(serotype_code == 'opv1' ~ RP_1,
+                        serotype_code == 'opv2' ~ RP_2,
+                        serotype_code == 'opv3' ~ RP_3)) %>%
+  relocate(rp)
+
+# Summarize non-missing data. Merge with metadata.
+rp %>% filter(!is.na(rp)) %>%
+  summarise(n = n(), n_nonzero = length(which(rp > 0)),
+            n_majority = length(which(rp >= 50)))
+
+# Merge with metadata. 
+rp %>% filter(!is.na(rp)) %>%
+  left_join(d_pairs %>% 
+  filter(str_starts(p.x,'AY1') & aln_type == 'all'), by = c('SampleFolio' = 'p.y')) %>%
+  relocate(VacStatus.y,daysPost.y) %>%
+  select(VacStatus.y,daysPost.y,FolioFamilia.y,rp,SampleFolio,serotype_code,rp) %>% unique() %>%
+  #group_by(VacStatus.y) %>%
+  group_by(serotype_code) %>%
+  summarize(n=n(), revertant = length(which(rp > 0)), prop_revertant = revertant/n) 
+
+# Look at households with evidence of transmission of the reversion mutation. 
+rp %>% filter(!is.na(rp)) %>%
+  left_join(d_pairs %>% 
+  filter(str_starts(p.x,'AY1') & aln_type == 'all'), by = c('SampleFolio' = 'p.y')) %>%
+  relocate(VacStatus.y,daysPost.y) %>%
+  select(VacStatus.y,daysPost.y,FolioFamilia.y,rp,SampleFolio,serotype_code,rp) %>% unique() %>%
+  group_by(FolioFamilia.y,serotype_code) %>%filter(rp >0) %>%
+  mutate(n = length(unique(SampleFolio))) %>% arrange(-n) %>%
+  filter('Household member' %in% VacStatus.y & 'Vaccinated child' %in% VacStatus.y)
+
+# Plot 5' UTR reversion mutation over time.
+
+# First, get the number of samples with assay result, grouped by serotype, days post vaccination. 
+# Then get the number of revertant proportion > 0
+rp %>% filter(!is.na(rp)) %>%
+  left_join(d_pairs %>% 
+  filter(str_starts(p.x,'AY1') & aln_type == 'all'), by = c('SampleFolio' = 'p.y')) %>%
+  relocate(VacStatus.y,daysPost.y) %>%
+  select(VacStatus.y,daysPost.y,FolioFamilia.y,rp,SampleFolio,serotype_code,rp) %>% unique() %>%
+  group_by(serotype_code) %>%
+  mutate(time = case_when(daysPost.y >0 & daysPost.y <=7 ~ '1 ', daysPost.y >7 & daysPost.y <= 14 ~ '2 ', daysPost.y >14 & daysPost.y<=21 ~ '3 ', daysPost.y > 21 ~ '4+ ', TRUE ~ as.character(NA))) %>%
+  group_by(time,serotype_code) %>% 
+  summarize(n = n(), revertant = length(which(rp >0)), prop_revertant = revertant/n)
+
+
+opv3_summary <- as.data.frame(as.character(aln3[,c(opv3_att1)])) %>% 
+  rownames_to_column(var = 'Sample') %>% as_tibble() %>% 
+  dplyr::rename(opv3_2493=V1) %>% 
+  left_join(daysPost) %>% 
+  mutate(opv3_2493_status = case_when(opv3_2493 == 'c' ~ 'Reference', opv3_2493 %in% c('n','-') ~ as.character(NA), TRUE ~ 'Mutation'),
+         time = case_when(daysPost >0 & daysPost <=7 ~ '1 ', daysPost >7 & daysPost <= 14 ~ '2 ', daysPost >14 & daysPost<=21 ~ '3 ', daysPost > 21 ~ '4+ ', TRUE ~ as.character(NA))) %>%
+  group_by(time) %>% 
+  summarize(n=n(), 
+            mutate_2493 = length(which(opv3_2493_status == 'Mutation')),
+            `2493` = mutate_2493/n,serotype = 3) %>%
+  pivot_longer(cols = c(`2493`), values_to = 'Revertant proportion', names_to = 'Site') %>% filter(!is.na(time))
 
 ```
