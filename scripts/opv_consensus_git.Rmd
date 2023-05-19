@@ -13,7 +13,6 @@ library(ggthemes)
 library(cowplot)
 library(knitr)
 library(kableExtra)
-library(Biostrings)
 library(ape)
 library(pegas)
 library(data.table)
@@ -92,13 +91,14 @@ ggsave(p3, filename = paste(plot_dir,'fig1.pdf',sep = ''))
 # Aligned with MAFFT - start w/ OPV, align to the reference, keep length of reference genome
 
 # Read alignments to full reference sequence. (Needs to be DNAbin, matrix which signifies aligned sequences)
-aln1 <- adegenet::fasta2DNAbin(file = paste0(project_dir,'processed/aln/opv1_ref.fasta'))
+aln1 <- adegenet::fasta2DNAbin(file = paste0(project_dir,'processed/aln/opv1_aln_to_ref.fasta'))
 dimnames(aln1)[[1]][1] <- "AY184219.1"
-aln2 <- adegenet::fasta2DNAbin(file = paste0(project_dir,'processed/aln/opv2_ref.fasta'))
+aln2 <- adegenet::fasta2DNAbin(file = paste0(project_dir,'processed/aln/opv2_aln_to_ref.fasta'))
 dimnames(aln2)[[1]][1] <- "AY184220.1"
 dimnames(aln2)[[1]][which(dimnames(aln2)[[1]] == 'C0505904E/C')] = 'C0505904C' # rename incorrectly named sequence
-aln3 <- adegenet::fasta2DNAbin(file =  paste0(project_dir,'processed/aln/opv3_ref.fasta'))
+aln3 <- adegenet::fasta2DNAbin(file =  paste0(project_dir,'processed/aln/opv3_aln_to_ref.fasta'))
 dimnames(aln3)[[1]][1] <- "AY184221.1"
+dimnames(aln3)[[1]] <- str_remove(dimnames(aln3)[[1]], 'New\\|')
 
 # Trim to VP1 peptide
 vp1_1 <- aln1[,2480:3385]
