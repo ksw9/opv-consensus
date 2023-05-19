@@ -6,5 +6,5 @@ There is an increasing burden of circulating vaccine-derived polioviruses (cVDPV
 
 - scripts/ includes scripts to reproduce analyses discussed in the paper
 - processed/opv1_ref.fasta, opv2_ref.fasta, opv3_ref.fasta: aligned samples to full reference sequence
-- data/metadata includes required metadata for analysis
+- data/metadata includes required metadata for analysis and data dictionary
 - data/who includes formatted metadata from the WHO extranet (https://extranet.who.int/polis/public/CaseCount.aspx), including both global and country-level reported cases from 2000-2022.
